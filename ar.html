@@ -51,7 +51,7 @@ $('qr').src='https://api.qrserver.com/v1/create-qr-code/?size=320x320&data='+enc
 const mv=$('mv');
 $('arbtn').onclick=()=>{if(mv.canActivateAR)mv.activateAR();else alert('A Realidade Aumentada só funciona em celulares compatíveis (Android com ARCore ou iPhone). Abra este site no celular.')};
 try{
-  const [D,gl,poses]=await Promise.all([fetch('braco_parts.json').then(r=>r.json()),new GLTFLoader().loadAsync('sim.glb'),fetch('poses.json').then(r=>r.json())]);
+  const [D,gl,poses]=await Promise.all([fetch('braco_parts.json?v=3').then(r=>r.json()),new GLTFLoader().loadAsync('sim.glb'),fetch('poses.json').then(r=>r.json())]);
   const arm=createArm(D.parts,{scene:gl.scene,poses});
   const num=(k,d)=>q.has(k)&&isFinite(+q.get(k))?+q.get(k):d;
   arm.setPose({g:num('g',0),o:num('o',60),c:num('c',-70),r:num('r',40)});
