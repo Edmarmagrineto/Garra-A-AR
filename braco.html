@@ -176,8 +176,8 @@ fetch('braco_parts.json').then(r=>r.json()).then(D=>{
   $('reset').onclick=()=>{Object.assign(J,{g:0,o:60,c:-70,r:40});apply()};
   apply();
 
-  const V={hero:[0.28,0.24,0.34],side:[0.0,0.14,0.6],front:[0.6,0.14,0],top:[0.0,0.65,0.05]};
-  cam.position.set(...V.hero);ctl.target.set(0,0.07,0);
+  const V={hero:[0.5,0.36,0.62],side:[0.0,0.2,1.0],front:[1.0,0.2,0],top:[0.0,1.05,0.05]};
+  cam.position.set(...V.hero);ctl.target.set(0.05,0.1,0);
   let tween=null,tour=false,showLab=true;
   document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{tour=false;tween={f:cam.position.clone(),t:new THREE.Vector3(...V[b.dataset.v]),k:0};document.querySelectorAll('[data-v]').forEach(x=>x.classList.toggle('on',x===b))});
   $('leg').onclick=()=>{showLab=!showLab;$('leg').classList.toggle('pri',showLab);$('labels').style.display=showLab?'':'none'};
