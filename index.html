@@ -3,78 +3,189 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Garra A · Realidade Aumentada</title>
-<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+<title>Garra A · simulador</title>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
 <style>
-:root{--bg:#0f1419;--card:#1a212b;--fg:#e8edf2;--mut:#9aa7b4;--acc:#ff8a3d}
+:root{--bg:#efece4;--panel:#f7f5ef;--ink:#2a2723;--mut:#8a857c;--acc:#e0701a;--line:#dcd7cb}
 *{box-sizing:border-box}
-body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg);line-height:1.5}
-header,main,footer{max-width:960px;margin:0 auto;padding:16px}
-h1{margin:.4em 0 .1em;font-size:1.8rem} h2{color:var(--acc);font-size:1.2rem}
-.sub{color:var(--mut);margin:0}
-.card{background:var(--card);border-radius:14px;padding:16px;margin:16px 0}
-model-viewer{width:100%;height:60vh;min-height:340px;background:radial-gradient(#2a3441,#12171d);border-radius:12px;--poster-color:transparent}
-.btns{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
-button{background:var(--acc);color:#111;border:0;border-radius:8px;padding:10px 16px;font-weight:600;cursor:pointer;font-size:1rem}
-button.sec{background:#2d3744;color:var(--fg)}
-button.on{outline:2px solid #fff}
-.qr{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
-.qr img{background:#fff;padding:8px;border-radius:8px;width:160px;height:160px}
-ul{padding-left:1.2em;color:var(--mut)}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,Segoe UI,Roboto,sans-serif;display:flex;flex-direction:column;overflow:hidden}
+header{display:flex;justify-content:space-between;align-items:flex-start;padding:14px 20px;gap:12px;flex-wrap:wrap}
+h1{margin:0;font-size:1.5rem}
+.sub{color:var(--mut);font-size:.8rem;margin:2px 0 8px}
+.pill{display:inline-block;border:1.5px solid var(--acc);color:var(--acc);border-radius:99px;padding:5px 14px;font-size:.85rem;text-decoration:none;background:transparent;font-weight:600}
+.pill:hover{background:var(--acc);color:#fff}
+.big{text-align:right}.big .lbl{font-size:.75rem;color:var(--mut)}
+.big .num{font:700 2.6rem ui-monospace,Consolas,monospace;color:var(--acc);line-height:1}.big .num small{font-size:1rem}
+.big .mono{font:.7rem ui-monospace,Consolas,monospace;color:var(--mut)}
+#wrap{flex:1;display:flex;gap:12px;padding:0 12px;min-height:0}
+aside{width:250px;display:flex;flex-direction:column;gap:12px;overflow:auto;flex:none}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.card h3{margin:0 0 8px;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase}
+.row{margin:8px 0;font-size:.85rem}
+.row .v{float:right;font-weight:600}
+input[type=range]{width:100%;accent-color:var(--acc)}
+#stage{flex:1;position:relative;min-width:0;border-radius:12px;overflow:hidden}
+#c{width:100%;height:100%;display:block}
+#hint{position:absolute;left:10px;top:10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:.82rem;max-width:420px}
+#hint b{color:var(--acc)}
+.lab{position:absolute;font:.68rem ui-monospace,Consolas,monospace;background:rgba(247,245,239,.92);border:1px solid var(--line);padding:2px 6px;border-radius:4px;pointer-events:none;white-space:nowrap;transform:translate(-50%,-120%)}
+#load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--mut)}
+.kv{display:flex;justify-content:space-between;font-size:.82rem;padding:5px 0;border-bottom:1px solid var(--line)}
+.kv:last-child{border:0}.kv b{font-family:ui-monospace,Consolas,monospace}
+.plist div{font-size:.78rem;padding:4px 6px;border-radius:6px;cursor:pointer}
+.plist div:hover,.plist div.on{background:#ece7da;color:var(--acc)}
+nav{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding:10px 12px 14px}
+nav button{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:99px;padding:8px 16px;font-size:.88rem;cursor:pointer}
+nav button.on,nav button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+nav .sep{width:8px}
+@media(max-width:900px){body{overflow:auto}#wrap{flex-direction:column}aside{width:auto;flex-direction:row;flex-wrap:wrap}aside .card{flex:1 1 220px}#stage{height:62vh;flex:none}}
 </style>
 </head>
 <body>
 <header>
-  <h1>Garra A — Braço mecânico com garra</h1>
-  <p class="sub">Projeto de Desenvolvimento de Produto · Modelo 3D e Realidade Aumentada</p>
+  <div>
+    <h1>Garra A · Garra paralela</h1>
+    <p class="sub">Projeto e Desenvolvimento de Produtos · montagem da base nova (MDF 5 mm)</p>
+    <a class="pill" href="ar.html">Ver em realidade aumentada ↗</a>
+  </div>
+  <div class="big"><div class="lbl">Abertura entre os dedos</div><div class="num"><span id="bigv">0</span> <small>mm</small></div><div class="mono" id="bigsub">garra fechada</div></div>
 </header>
-<main>
-  <section class="card">
-    <h2>Modelo 3D interativo</h2>
-    <model-viewer id="mv" src="garra.glb" alt="Modelo 3D da Garra A"
-      ar ar-modes="webxr scene-viewer quick-look" ar-scale="auto" ar-placement="floor"
-      camera-controls touch-action="pan-y" auto-rotate shadow-intensity="1" exposure="1.1"
-      environment-image="neutral"></model-viewer>
-    <div class="btns">
-      <button class="sec on" id="b1">Garra fechada</button>
-      <button class="sec" id="b2">Garra aberta</button>
-      <button id="arbtn">📱 Ver em Realidade Aumentada</button>
+<div id="wrap">
+  <aside>
+    <div class="card">
+      <h3>Articulações</h3>
+      <div class="row">Abertura da garra<span class="v" id="vopen">0%</span></div>
+      <input type="range" id="sl" min="0" max="100" value="0" step="0.5">
+      <div class="row" style="color:var(--mut);font-size:.75rem">Arraste o controle ou o êmbolo (bloco) no modelo.</div>
     </div>
-    <p class="sub">Arraste para girar e use pinça/scroll para zoom. No celular, toque em “Ver em Realidade Aumentada” e aponte a câmera para uma superfície plana (mesa/chão).</p>
-  </section>
-
-  <section class="card">
-    <h2>Abrir no celular</h2>
-    <div class="qr">
-      <img id="qr" alt="QR Code deste site" width="160" height="160">
-      <div>
-        <p>Escaneie o QR Code com o celular para abrir esta página e usar a Realidade Aumentada.</p>
-        <ul>
-          <li><b>Android:</b> Chrome com Google Play Services for AR (Scene Viewer).</li>
-          <li><b>iPhone/iPad:</b> Safari (AR Quick Look).</li>
-        </ul>
-      </div>
+    <div class="card">
+      <h3>Medidas (do CAD)</h3>
+      <div class="kv"><span>Abertura dos dedos</span><b id="m1">–</b></div>
+      <div class="kv"><span>Curso do carro</span><b id="m2">–</b></div>
+      <div class="kv"><span>Giro dos elos</span><b id="m3">–</b></div>
+      <div class="kv"><span>Giro das bielas</span><b id="m4">–</b></div>
     </div>
-  </section>
+    <div class="card"><h3>Peças</h3><div class="plist" id="plist"></div></div>
+  </aside>
+  <div id="stage">
+    <canvas id="c"></canvas>
+    <div id="labels"></div>
+    <div id="hint"><b>Arraste o êmbolo</b> (bloco) ou use o controle para abrir e fechar a garra. Gire a vista arrastando o fundo.</div>
+    <div id="load">carregando modelo…</div>
+  </div>
+</div>
+<nav>
+  <button data-g="all" class="on">Tudo</button>
+  <button data-g="dedos">Dedos</button>
+  <button data-g="elos">Elos</button>
+  <button data-g="bielas">Bielas</button>
+  <button data-g="carro">Carro</button>
+  <button data-g="bloco">Êmbolo</button>
+  <span class="sep"></span>
+  <button data-v="hero" class="on" id="vh">Herói</button>
+  <button data-v="front">Frente</button>
+  <button data-v="side">Lado</button>
+  <button data-v="top">Topo</button>
+  <span class="sep"></span>
+  <button class="pri" id="tour">Tour automático</button>
+  <button id="expl">Vista explodida</button>
+  <button class="pri" id="leg">Legendas</button>
+</nav>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+const $=id=>document.getElementById(id);
+const canvas=$('c'),stage=$('stage');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;
+const scene=new THREE.Scene();
+const cam=new THREE.PerspectiveCamera(35,1,0.005,5);
+const ctl=new OrbitControls(cam,canvas);ctl.enableDamping=true;ctl.target.set(0,0.014,0);
+scene.add(new THREE.HemisphereLight(0xffffff,0xb9b2a2,1.1));
+const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(0.2,0.5,0.3);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-.2,right:.2,top:.2,bottom:-.2,near:.01,far:1});scene.add(sun);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(2,2),new THREE.ShadowMaterial({opacity:.18}));ground.rotation.x=-Math.PI/2;ground.position.y=-0.0005;ground.receiveShadow=true;scene.add(ground);
+const grid=new THREE.GridHelper(0.4,16,0xcfc9ba,0xdcd7cb);grid.position.y=-0.0008;scene.add(grid);
 
-  <section class="card">
-    <h2>Sobre o projeto</h2>
-    <p>Garra mecânica de acionamento por êmbolo, com dedos, elos, bielas e carro deslizante, cortada em MDF 5 mm (furos M3). Esta versão usa a base nova e o bloco do êmbolo de três placas.</p>
-    <ul>
-      <li>Montagem completa: base, carro, bloco do êmbolo, dedos, elos, bielas e espaçadores</li>
-      <li>Modelo exportado do CAD (STEP) para glTF/GLB</li>
-    </ul>
-    <p><b>Integrantes:</b> <i>(edite aqui o nome da equipe)</i></p>
-  </section>
-</main>
-<footer class="sub">Projeto acadêmico · Realidade Aumentada com &lt;model-viewer&gt;</footer>
-<script>
-const mv=document.getElementById('mv');
-document.getElementById('qr').src='https://api.qrserver.com/v1/create-qr-code/?size=320x320&data='+encodeURIComponent(location.href.split('#')[0]);
-function setM(f,id){mv.src=f;['b1','b2'].forEach(x=>document.getElementById(x).classList.toggle('on',x===id))}
-document.getElementById('b1').onclick=()=>setM('garra.glb','b1');
-document.getElementById('b2').onclick=()=>setM('garra_aberta.glb','b2');
-document.getElementById('arbtn').onclick=()=>{ if(mv.canActivateAR) mv.activateAR(); else alert('A Realidade Aumentada só funciona em celulares compatíveis (Android com ARCore ou iPhone). Abra este site no celular.'); };
+const LABEL={NB_base_nova:'G01 · base nova',A_dedo:'G04 · dedo',A_espacador:'espaçador',A_elo_interno:'elo interno',A_elo_externo:'elo externo (alavanca)',A_biela:'biela',NB_carro:'P03 · carro em T',NB_espacador:'espaçador do bloco',NB_bloco:'P02 · bloco do êmbolo',parafuso:'parafuso M3×35'};
+const key=n=>n.startsWith('NB_base')?'NB_base_nova':n.startsWith('A_dedo')?'A_dedo':n.startsWith('A_espacador')?'A_espacador':n.startsWith('A_elo_interno')?'A_elo_interno':n.startsWith('A_elo_externo')?'A_elo_externo':n.startsWith('A_biela')?'A_biela':n.startsWith('NB_carro')?'NB_carro':n.startsWith('NB_espacador')?'NB_espacador':n.startsWith('NB_bloco')?'NB_bloco':'parafuso';
+const GROUP=k=>({A_dedo:'dedos',A_elo_interno:'elos',A_elo_externo:'elos',A_biela:'bielas',NB_carro:'carro',NB_bloco:'bloco',NB_espacador:'bloco',parafuso:'bloco'}[k]||'outros');
+
+let parts=[],poses,S=0,expl=0,showLab=true,group='all',tour=false,selected=null;
+const labels=$('labels');
+Promise.all([new GLTFLoader().loadAsync('sim.glb'),fetch('poses.json').then(r=>r.json())]).then(([g,p])=>{
+  poses=p;scene.add(g.scene);
+  g.scene.children.slice().forEach((n,i)=>{
+    const po=poses.find(q=>q.name===n.name);const k=key(n.name);
+    if(k==='A_espacador'||k==='NB_espacador'||k==='parafuso')po.angle=0;
+    n.traverse(o=>{if(o.isMesh){o.castShadow=true;o.material=o.material.clone();o.material.transparent=true;o.userData.part=parts.length}});
+    const el=document.createElement('div');el.className='lab';el.textContent=LABEL[k];labels.appendChild(el);
+    parts.push({node:n,po,k,g:GROUP(k),el,base:n.position.clone()});
+  });
+  const names={};parts.forEach((p,i)=>{names[p.k]=(names[p.k]||0)+1});
+  const pl=$('plist');parts.forEach((p,i)=>{const d=document.createElement('div');d.textContent=LABEL[p.k]+(names[p.k]>1?' #'+(parts.filter((q,j)=>q.k===p.k&&j<=i).length):'');d.onclick=()=>select(i);p.row=d;pl.appendChild(d)});
+  $('load').remove();apply();view('hero',true);
+});
+function select(i){selected=selected===i?null:i;parts.forEach((p,j)=>p.row.classList.toggle('on',j===selected));applyGroup()}
+function applyGroup(){parts.forEach((p,i)=>{const dim=selected!=null?i!==selected:(group!=='all'&&p.g!==group);p.node.traverse(o=>{if(o.isMesh)o.material.opacity=dim?0.12:1})})}
+const ang=(p)=>p.po.angle*S;
+function apply(){
+  let cy=0;parts.forEach(p=>cy+=p.po.closed[1]);cy/=parts.length;
+  parts.forEach(p=>{
+    const c=p.po.closed,o=p.po.open;
+    p.node.position.set(c[0]+(o[0]-c[0])*S,c[1]+(o[1]-c[1])*S+(c[1]-cy)*expl*4+(expl?expl*0.0:0),c[2]+(o[2]-c[2])*S);
+    p.node.rotation.set(0,ang(p),0);
+  });
+  const d=(a,b)=>{const A=parts.find(p=>p.node.name===a),B=parts.find(p=>p.node.name===b);return A.node.position.distanceTo(B.node.position)*1000};
+  const open=d('A_dedo_1','A_dedo_7'),closed=(()=>{const A=parts.find(p=>p.node.name==='A_dedo_1').po,B=parts.find(p=>p.node.name==='A_dedo_7').po;return new THREE.Vector3(...A.closed).distanceTo(new THREE.Vector3(...B.closed))*1000})();
+  $('bigv').textContent=open.toFixed(1);$('bigsub').textContent=S<0.02?'garra fechada':S>0.98?'garra totalmente aberta':'entre dedos (centro a centro)';
+  $('vopen').textContent=Math.round(S*100)+'%';$('sl').value=S*100;
+  const car=parts.find(p=>p.node.name.startsWith('NB_carro')).po;
+  $('m1').textContent=open.toFixed(1)+' mm';
+  $('m2').textContent=(new THREE.Vector3(...car.open).distanceTo(new THREE.Vector3(...car.closed))*S*1000).toFixed(1)+' mm';
+  const e=parts.find(p=>p.node.name==='A_elo_interno_4').po.angle,b=parts.find(p=>p.node.name==='A_biela_6').po.angle;
+  $('m3').textContent=Math.abs(e*S*180/Math.PI).toFixed(1)+'°';$('m4').textContent=Math.abs(b*S*180/Math.PI).toFixed(1)+'°';
+}
+$('sl').oninput=e=>{S=e.target.value/100;apply()};
+// drag piston block
+const ray=new THREE.Raycaster(),mouse=new THREE.Vector2();let drag=null;
+canvas.addEventListener('pointerdown',e=>{
+  const r=canvas.getBoundingClientRect();mouse.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(mouse,cam);
+  const hit=ray.intersectObjects(parts.map(p=>p.node),true)[0];if(!hit)return;
+  let o=hit.object;while(o&&!parts.some(p=>p.node===o))o=o.parent;const pi=parts.findIndex(p=>p.node===o);
+  if(parts[pi].g==='bloco'||parts[pi].g==='carro'){drag={x:e.clientX,y:e.clientY,s:S};ctl.enabled=false;canvas.setPointerCapture(e.pointerId)}
+});
+canvas.addEventListener('pointermove',e=>{if(!drag)return;
+  const car=parts.find(p=>p.node.name.startsWith('NB_carro')).po;
+  const a=new THREE.Vector3(...car.closed),b=new THREE.Vector3(...car.open);const dir=b.clone().sub(a);const len=dir.length();dir.normalize();
+  const p0=a.clone().project(cam),p1=b.clone().project(cam);
+  const w=r=>({x:(r.x+1)/2*canvas.clientWidth,y:(1-r.y)/2*canvas.clientHeight});
+  const A=w(p0),B=w(p1);const vx=B.x-A.x,vy=B.y-A.y,vl2=vx*vx+vy*vy||1;
+  S=Math.max(0,Math.min(1,drag.s+((e.clientX-drag.x)*vx+(e.clientY-drag.y)*vy)/vl2));apply()});
+const up=()=>{drag=null;ctl.enabled=true};canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
+// views
+const V={hero:[0.17,0.14,0.2],front:[0,0.04,0.34],side:[0.34,0.04,0],top:[0.0001,0.4,0.0001]};
+let tween=null;
+function view(n,now){const p=V[n];if(now){cam.position.set(...p);ctl.target.set(0,0.014,0);return}
+  tween={from:cam.position.clone(),to:new THREE.Vector3(...p),t:0};document.querySelectorAll('[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===n))}
+document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{tour=false;$('tour').classList.add('pri');view(b.dataset.v)});
+document.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>{group=b.dataset.g;selected=null;parts.forEach(p=>p.row.classList.remove('on'));document.querySelectorAll('[data-g]').forEach(x=>x.classList.toggle('on',x===b));applyGroup()});
+$('expl').onclick=()=>{$('expl').classList.toggle('on');expl=$('expl').classList.contains('on')?1:0;apply()};
+$('leg').onclick=()=>{showLab=!showLab;$('leg').classList.toggle('pri',showLab);labels.style.display=showLab?'':'none'};
+$('tour').onclick=()=>{tour=!tour;$('tour').classList.toggle('on',tour)};
+function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}
+addEventListener('resize',resize);resize();
+let t0=performance.now();
+(function loop(){requestAnimationFrame(loop);const t=performance.now(),dt=(t-t0)/1000;t0=t;
+  if(tween){tween.t=Math.min(1,tween.t+dt*1.6);cam.position.lerpVectors(tween.from,tween.to,1-Math.pow(1-tween.t,3));if(tween.t>=1)tween=null}
+  if(tour&&parts.length){S=0.5-0.5*Math.cos(t/1500);apply();const a=t/6000;cam.position.set(Math.cos(a)*0.26,0.12,Math.sin(a)*0.26)}
+  ctl.update();renderer.render(scene,cam);
+  if(showLab)parts.forEach(p=>{const v=p.node.position.clone().project(cam);const x=(v.x+1)/2*canvas.clientWidth,y=(1-v.y)/2*canvas.clientHeight;p.el.style.left=x+'px';p.el.style.top=y+'px';p.el.style.display=(p.g==='outros'||p.g===group||group==='all')&&(p.k!=='A_espacador')&&(p.k!=='parafuso')?'':'none'});
+})();
 </script>
 </body>
 </html>
