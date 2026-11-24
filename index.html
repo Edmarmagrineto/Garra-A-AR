@@ -154,7 +154,7 @@ fetch('braco_parts.json').then(r=>r.json()).then(D=>{
     const n=arm.setPose({});const ph=physics(),{d}=P();
     const vals=[J.g+'°',J.o+'°',J.c+'°',J.r+'%'];['vg','vo','vc','vr'].forEach((id,i)=>$(id).textContent=vals[i]);
     ['s0','s1','s2','s3'].forEach((id,i)=>{if(document.activeElement!==$(id))$(id).value=J[keys[i]]});
-    const vmax=ph.A*STROKE/1000;
+    const vmax=Math.PI*(d/2)**2*STROKE/1000;
     n.forEach((v,i)=>{$('bm'+i).style.width=(v*100)+'%';$('bs'+i).style.width=(v*100)+'%';$('hv'+i).textContent=`${fmt(v*vmax,1)} ml · ${fmt(v*vmax,1)} ml`});
     $('fn0').textContent=fmt(ph.Fo)+' N';$('fp0').textContent=fmt(ph.po,2)+' bar';$('fn1').textContent=fmt(ph.Fc)+' N';$('fp1').textContent=fmt(ph.pc,2)+' bar';
     $('fg').textContent=fmt(ph.grip,2)+' N';$('fm').textContent=fmt(ph.mass,0)+' g';
@@ -186,7 +186,7 @@ fetch('braco_parts.json').then(r=>r.json()).then(D=>{
   document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>filter(b.dataset.f));
 
   // ---- views
-  const V={hero:[.55,.4,.7],side:[0,.2,1.05],front:[1.05,.2,0],top:[0,1.1,.05]};
+  const V={hero:[.42,.3,.52],side:[0,.18,.8],front:[.8,.18,0],top:[0,.8,.05]};
   let tween=null;
   function goto(pos,tgt){tween={fp:cam.position.clone(),ft:ctl.target.clone(),tp:new THREE.Vector3(...pos),tt:new THREE.Vector3(...tgt),k:0}}
   cam.position.set(...V.hero);ctl.target.set(.05,.1,0);
