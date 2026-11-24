@@ -36,8 +36,10 @@ input[type=range]{width:100%;accent-color:var(--acc);margin:0}
 label.in{display:flex;justify-content:space-between;align-items:center;font-size:.8rem;margin:5px 0}label.in input{width:70px;padding:3px 5px;border:1px solid var(--line);border-radius:6px;background:#fff;font:inherit}
 #stage{flex:1;position:relative;min-width:0;border-radius:12px;overflow:hidden}
 #c{width:100%;height:100%;display:block}
-#hint{position:absolute;left:10px;top:10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:.8rem;max-width:430px}
-#hint b{color:var(--acc)}
+#hint{position:absolute;left:10px;top:10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:.82rem;max-width:460px;line-height:1.45}
+#hint b{color:var(--acc);font-size:1.05rem;display:block;margin:6px 0 2px}
+#chips{display:flex;gap:5px;flex-wrap:wrap}#chips span{font-size:.68rem;border:1px solid var(--line);border-radius:99px;padding:2px 9px;color:var(--mut)}#chips span.on{background:var(--acc);border-color:var(--acc);color:#fff}
+#cv{font:.74rem ui-monospace,Consolas,monospace;color:var(--mut);margin-top:4px}
 #status{position:absolute;left:10px;bottom:10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 12px;font:.74rem ui-monospace,Consolas,monospace;color:var(--ink)}
 .lab{position:absolute;font:.66rem ui-monospace,Consolas,monospace;background:rgba(247,245,239,.92);border:1px solid var(--line);padding:2px 6px;border-radius:4px;pointer-events:none;white-space:nowrap;transform:translate(-50%,-130%)}
 #load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--mut)}
@@ -70,7 +72,7 @@ nav .sep{width:6px}
       <p class="note">Valores supostos (edite para o seu projeto). Massas das peças vêm das áreas do DXF: MDF 0,70 g/cm³, 5 mm. Não inclui seringas, tubos e fixações.</p></div>
   </aside>
   <div id="stage"><canvas id="c"></canvas><div id="labels"></div>
-    <div id="hint"><b>Arraste o êmbolo</b> de uma seringa mestra (no painel, à frente da base) para mover o braço. Desafio: leve a peça cinza da posição A até a B.</div>
+    <div id="hint"><div id="chips"></div><b id="ct"></b><div id="cd"></div><div id="cv"></div></div>
     <div id="status"></div>
     <div id="load">carregando peças…</div></div>
   <aside id="right">
@@ -89,11 +91,12 @@ nav .sep{width:6px}
   <span class="sep"></span>
   <button data-v="hero" class="on">Herói</button><button data-v="side">Lado</button><button data-v="front">Frente</button><button data-v="top">Topo</button><button data-v="claw">Garra</button>
   <span class="sep"></span>
-  <button class="pri" id="tour">Tour automático</button><button id="carry">Pegar e levar a peça</button><button id="resetp">Reiniciar peça</button><button class="pri" id="leg">Legendas</button><button class="pri" id="pan">Painéis</button>
+  <button class="pri" id="tour">Demonstração automática</button><button id="carry">Pegar e levar a peça</button><button id="resetp">Reiniciar peça</button><button class="pri" id="leg">Legendas</button><button class="pri" id="pan">Painéis</button>
 </nav>
 <script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {createArm,D2R,RANGE,STROKE} from './arm.js';
 const $=id=>document.getElementById(id);const canvas=$('c'),stage=$('stage');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;
@@ -105,8 +108,9 @@ Object.assign(sun.shadow.camera,{left:-.5,right:.5,top:.5,bottom:-.5,near:.05,fa
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(4,4),new THREE.ShadowMaterial({opacity:.18}));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
 const grid=new THREE.GridHelper(1,20,0xcfc9ba,0xdcd7cb);grid.position.y=0.0002;scene.add(grid);
 
-fetch('braco_parts.json').then(r=>r.json()).then(D=>{
-  const arm=createArm(D.parts);scene.add(arm.root);
+Promise.all([fetch('braco_parts.json').then(r=>r.json()),new GLTFLoader().loadAsync('sim.glb'),fetch('poses.json').then(r=>r.json())]).then(([D,gl,poses])=>{
+  const arm=createArm(D.parts,{scene:gl.scene,poses});scene.add(arm.root);
+  arm.pist.forEach(p=>p.rod.traverse(o=>{if(o.isMesh)o.material=o.material.clone()}));
   const J=arm.J;const mm=arm.mm;
   const keys=['g','o','c','r'];
   // ---- test piece, A and B markers (mm world coords)
@@ -119,6 +123,7 @@ fetch('braco_parts.json').then(r=>r.json()).then(D=>{
   // ---- labels
   const anchor=(t,o,p)=>({e:Object.assign(document.createElement('div'),{className:'lab',textContent:t}),o,p:new THREE.Vector3(...p)});
   const al=[anchor('G01 · base',arm.base,[-90,12,60]),anchor('P09 · torre',arm.yaw,[0,arm.towerH,0]),anchor('P03 · lança',arm.shoulder,[arm.Lb/2,10,0]),anchor('P05 · antebraço',arm.elbow,[arm.Lf/2,10,0]),anchor('G04 · garra',arm.wrist,[30,16,0]),anchor('P02 · suporte das mestras',arm.base,[92,42,0]),anchor('P07 · disco giratório',arm.base,[arm.px,22,0])];
+  arm.pist.forEach((p,i)=>al.push(anchor('S'+(i+1),arm.base,[p.end.x+8,p.y,p.z])));
   al.forEach(a=>$('labels').appendChild(a.e));
 
   // ---- UI build
@@ -130,7 +135,7 @@ fetch('braco_parts.json').then(r=>r.json()).then(D=>{
   const fmt=(x,n=1)=>x.toFixed(n).replace('.',',');
 
   function physics(){
-    const {d,m,l}=P();const g=9.81,Lb=arm.Lb/1000,Lf=arm.Lf/1000,cl=arm.clawLen*.75/1000;
+    const {d,m,l}=P();const g=9.81,Lb=arm.Lb/1000,Lf=arm.Lf/1000,cl=arm.tipLen/1000;
     const o=J.o*D2R,oc=(J.o+J.c)*D2R,M=arm.M;
     const mb=M.boom/1000,mf=M.fore/1000,mc=(M.claw+m)/1000;
     const xe=Lb*Math.cos(o),xf=Lf/2*Math.cos(oc),xt=Lf*Math.cos(oc)+cl*Math.cos(oc);
@@ -138,6 +143,10 @@ fetch('braco_parts.json').then(r=>r.json()).then(D=>{
     const A=Math.PI*(d/2000)**2;
     const Fo=Math.abs(tO)/(l/1000),Fc=Math.abs(tC)/(l/1000);
     return{Fo,Fc,po:Fo/A/1e5,pc:Fc/A/1e5,grip:m/1000*g/(2*.3),mass:M.total,A}}
+  let curStage=null;
+  function refreshCv(){if(!curStage||curStage.i==null){$('cv').textContent='';return}
+    const n=arm.norm(J),i=curStage.i,v=[J.g+'°',J.o+'°',J.c+'°',J.r+'%'][i];
+    $('cv').textContent=`êmbolo ${i+1}: ${fmt(n[i]*STROKE,1)} mm  →  ${['giro','ombro','cotovelo','abertura'][i]} ${v}`}
   const sch=$('sch');
   function drawSchema(){
     const s=.42,ox=34,oy=140,P2=(x,y)=>[ox+x*s,oy-y*s];
@@ -161,7 +170,7 @@ fetch('braco_parts.json').then(r=>r.json()).then(D=>{
     $('bigv').textContent=fmt(ph.Fo);$('bigp').textContent=fmt(ph.po,2);$('bigl').textContent=P().l;
     const t=arm.tipPos();
     $('meas').innerHTML=`<div class="kv"><span>Lança (furo a furo)</span><b>${fmt(arm.Lb,0)} mm</b></div><div class="kv"><span>Antebraço (furo a furo)</span><b>${fmt(arm.Lf,0)} mm</b></div><div class="kv"><span>Alcance da ponta</span><b>${fmt(Math.hypot(t.x-arm.px,t.z),0)} mm</b></div><div class="kv"><span>Altura da ponta</span><b>${fmt(t.y,0)} mm</b></div>`;
-    $('arlink').href=`ar.html?g=${J.g}&o=${J.o}&c=${J.c}&r=${J.r}`;
+    $('arlink').href=`ar.html?g=${J.g}&o=${J.o}&c=${J.c}&r=${J.r}`;refreshCv();
     drawSchema()}
   ['s0','s1','s2','s3'].forEach((id,i)=>$(id).oninput=e=>{stopAll();J[keys[i]]=+e.target.value;refresh()});
   ['pd','pm','pl'].forEach(id=>$(id).oninput=refresh);
@@ -183,7 +192,7 @@ fetch('braco_parts.json').then(r=>r.json()).then(D=>{
   function filter(f){document.querySelectorAll('[data-f]').forEach(b=>b.classList.toggle('on',b.dataset.f===f));
     arm.woods.forEach(m=>{m.material.opacity=f==='all'?1:f==='xray'?.14:arm.groups[f].includes(m)?1:.12});
     [arm.piece].forEach(m=>m.visible=true)}
-  document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>filter(b.dataset.f));
+  document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{stopAll();filter(b.dataset.f)});
 
   // ---- views
   const V={hero:[.42,.3,.52],side:[0,.18,.8],front:[.8,.18,0],top:[0,.8,.05]};
@@ -196,45 +205,65 @@ fetch('braco_parts.json').then(r=>r.json()).then(D=>{
   $('pan').onclick=()=>{$('pan').classList.toggle('pri');['left','right'].forEach(id=>$(id).classList.toggle('hide',!$('pan').classList.contains('pri')));resize()};
 
   // ---- tour / carry
-  let tour=false,token=0;
-  const stopAll=()=>{token++;tour=false;$('tour').classList.add('pri');$('tour').classList.remove('on');status('')};
+  let token=0,demoOn=false;
+  const HOME={g:0,o:60,c:-70,r:40};
+  const STAGES=[
+   {k:'giro',n:'1 · Giro da base',i:0,f:'giro',a:{g:-60},b:{g:60},d:'A seringa mestra 1 empurra o fluido até a seringa escrava do disco giratório. A torre inteira gira em torno do eixo vertical, de −90° a +90°.'},
+   {k:'ombro',n:'2 · Ombro',i:1,f:'ombro',a:{o:15},b:{o:100},d:'A seringa 2 levanta e abaixa a lança (as duas placas longas) em torno do pino no alto da torre. É a articulação que carrega mais peso.'},
+   {k:'cot',n:'3 · Cotovelo',i:2,f:'cot',a:{c:-25},b:{c:-130},d:'A seringa 3 dobra o antebraço em relação à lança, aproximando ou afastando a garra da base.'},
+   {k:'garra',n:'4 · Garra',i:3,f:'garra',a:{r:0},b:{r:100},d:'A seringa 4 empurra o carro da Garra A: as bielas e os elos giram e os dois dedos abrem e fecham em paralelo.'},
+   {k:'carry',n:'5 · Pegar e levar',i:null,f:'all',d:'Os quatro movimentos juntos: a garra desce até a peça, fecha, levanta, gira a base e solta a peça na outra marca.'}];
+  $('chips').innerHTML=STAGES.map(s=>`<span data-s="${s.k}">${s.n}</span>`).join('');
+  function caption(s){curStage=s;$('ct').textContent=s?s.n:'Modo manual';
+    $('cd').textContent=s?s.d:'Arraste o êmbolo de uma seringa mestra (à frente da base) ou use os controles à direita. Desafio: leve a peça cinza de A até B.';
+    $('chips').querySelectorAll('span').forEach(x=>x.classList.toggle('on',!!s&&x.dataset.s===s.k));
+    arm.pist.forEach((p,j)=>p.rod.traverse(o=>{if(o.isMesh)o.material.color.set(s&&s.i===j?0xe0701a:0xdddddd)}));refreshCv()}
+  const stopAll=()=>{token++;demoOn=false;ctl.autoRotate=false;$('tour').classList.add('pri');$('tour').classList.remove('on');status('');caption(null);filter('all')};
   const status=t=>$('status').style.display=(($('status').textContent=t),t?'':'none');status('');
-  $('tour').onclick=()=>{const was=tour;stopAll();if(!was){tour=true;$('tour').classList.add('on')}};
+  const sleep=(ms,my)=>new Promise(r=>setTimeout(()=>r(my===token),ms));
+  async function demo(my){demoOn=true;$('tour').classList.add('on');ctl.autoRotate=true;ctl.autoRotateSpeed=1.4;
+    while(my===token){
+      for(const s of STAGES){if(my!==token)return;caption(s);filter(s.f);
+        if(s.k==='carry'){await runCarry(my)}
+        else{if(!await tweenJ({...HOME,...s.a},1000,my))return;if(!await tweenJ({...J,...s.b},3000,my))return;if(!await tweenJ({...J,...s.a},2400,my))return}
+        if(!await sleep(500,my))return}
+    }}
+  $('tour').onclick=()=>{if(demoOn){stopAll()}else{stopAll();demo(token)}};
+  ctl.addEventListener('start',()=>{ctl.autoRotate=false});
   const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
   const tweenJ=(to,ms,my)=>new Promise(res=>{const from={...J},t0=performance.now();(function f(){if(my!==token)return res(false);const k=Math.min(1,(performance.now()-t0)/ms),e=ease(k);keys.forEach(a=>J[a]=Math.round((from[a]+(to[a]-from[a])*e)*10)/10);refresh();k<1?requestAnimationFrame(f):res(true)})()});
   const clamp=(v,r)=>Math.max(r[0],Math.min(r[1],v));
   function ik(p,r){ // p: tip target (mm, world)
     const dx=p.x-arm.px,dz=p.z;const g=Math.atan2(dz,dx)/D2R,rr=Math.hypot(dx,dz);
-    const tl=arm.clawLen*.75;let phi=-75*D2R,o=60,c=-70;
+    const tl=arm.tipLen;let phi=-75*D2R,o=60,c=-70;
     for(let it=0;it<12;it++){const wx=rr-tl*Math.cos(phi),wy=p.y-tl*Math.sin(phi)-arm.shoulderY;
       const d=Math.min(Math.hypot(wx,wy),arm.Lb+arm.Lf-1),Lb=arm.Lb,Lf=arm.Lf;
       const gam=Math.acos(Math.max(-1,Math.min(1,(Lb*Lb+Lf*Lf-d*d)/(2*Lb*Lf)))),al=Math.acos(Math.max(-1,Math.min(1,(Lb*Lb+d*d-Lf*Lf)/(2*Lb*d))));
       const oo=Math.atan2(wy,wx)+al,cc=-(Math.PI-gam);phi=(phi+(oo+cc))/2;o=oo/D2R;c=cc/D2R}
     return{g:clamp(Math.round(g),RANGE.g),o:clamp(Math.round(o),RANGE.o),c:clamp(Math.round(c),RANGE.c),r}}
   const above=(p,y)=>new THREE.Vector3(p.x,y,p.z);
-  async function carry(){stopAll();const my=token;const go=async(p,r,ms=1100)=>tweenJ(ik(p,r),ms,my);
-    const home={g:0,o:60,c:-70,r:40};
-    status('Indo até a peça (A)…');
-    if(!await tweenJ({...home,r:100},900,my))return;
-    // reset piece if not at A
+  async function runCarry(my){const go=async(p,r,ms=1100)=>tweenJ(ik(p,r),ms,my);
     if(arm.piece.parent!==mm){mm.attach(arm.piece)}
-    if(!await go(above(A,80),100))return;status('Descendo…');if(!await go(above(A,14),100,900))return;
-    status('Fechando a garra');if(!await tweenJ({...J,r:25},700,my))return;
-    arm.wrist.attach(arm.piece);status('Levando para B…');
-    if(!await go(above(A,90),25,900))return;if(!await go(above(B,90),25,1600))return;status('Descendo…');if(!await go(above(B,16),25,900))return;
+    const nearA=arm.piece.position.distanceTo(A)<arm.piece.position.distanceTo(B),src=nearA?A:B,dst=nearA?B:A,nm=nearA?'B':'A',sn=nearA?'A':'B';
+    status('Indo até a peça ('+sn+')…');
+    if(!await tweenJ({...HOME,r:100},900,my))return;
+    if(!await go(above(src,80),100))return;status('Descendo…');if(!await go(above(src,14),100,900))return;
+    status('Fechando a garra');if(!await tweenJ({...J,r:20},700,my))return;
+    arm.wrist.attach(arm.piece);status('Levando para '+nm+'…');
+    if(!await go(above(src,90),20,900))return;if(!await go(above(dst,90),20,1800))return;status('Descendo…');if(!await go(above(dst,16),20,900))return;
     status('Soltando');if(!await tweenJ({...J,r:100},700,my))return;
-    mm.attach(arm.piece);arm.piece.rotation.set(0,0,0);arm.piece.position.set(B.x,6,B.z);
-    if(!await go(above(B,90),100,900))return;if(!await tweenJ(home,1200,my))return;
-    status('Desafio concluído ✔');setTimeout(()=>{if(my===token)status('')},2500)}
-  $('carry').onclick=carry;
+    mm.attach(arm.piece);arm.piece.rotation.set(0,0,0);arm.piece.position.set(dst.x,6,dst.z);
+    if(!await go(above(dst,90),100,900))return;if(!await tweenJ(HOME,1200,my))return;
+    status('Desafio concluído ✔');setTimeout(()=>{if(my===token)status('')},2000)}
+  $('carry').onclick=()=>{stopAll();const my=token;caption(STAGES[4]);runCarry(my).then(()=>{if(my===token)caption(null)})};
   $('resetp').onclick=()=>{stopAll();mm.attach(arm.piece);arm.piece.rotation.set(0,0,0);arm.piece.position.copy(A)};
+  demo(token); // começa sozinho ao abrir o site
 
   function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}
   addEventListener('resize',resize);resize();
   let t0=performance.now();
   (function loop(){requestAnimationFrame(loop);const t=performance.now(),dt=(t-t0)/1000;t0=t;
     if(tween){tween.k=Math.min(1,tween.k+dt*1.6);const e=1-Math.pow(1-tween.k,3);cam.position.lerpVectors(tween.fp,tween.tp,e);ctl.target.lerpVectors(tween.ft,tween.tt,e);if(tween.k>=1)tween=null}
-    if(tour){J.g=Math.round(55*Math.sin(t/1800));J.o=Math.round(55+40*Math.sin(t/1300));J.c=Math.round(-70-60*Math.sin(t/1700+1));J.r=Math.round(50+50*Math.sin(t/900));refresh()}
     ctl.update();renderer.render(scene,cam);
     const pr=(v,e)=>{v.project(cam);e.style.left=(v.x+1)/2*canvas.clientWidth+'px';e.style.top=(1-v.y)/2*canvas.clientHeight+'px'};
     if($('leg').classList.contains('pri')){al.forEach(a=>{const v=a.p.clone();a.o.localToWorld(v);pr(v,a.e)});labs.forEach(l=>pr(l.w(),l.e))}

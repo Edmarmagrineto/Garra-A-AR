@@ -7,7 +7,7 @@ const T=5;
 const area=p=>{const sh=a=>{let s=0;for(let i=0;i<a.length;i++){const q=a[(i+1)%a.length];s+=a[i][0]*q[1]-q[0]*a[i][1]}return Math.abs(s/2)};
   let A=sh(p.outline);p.holes.forEach(h=>A-=h.r?Math.PI*h.r*h.r:sh(h.poly));return A};
 
-export function createArm(P){
+export function createArm(P,G){
   const mat=(c,o={})=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.8},o));
   const MAT={mdf:mat(0xd9c39a),mdf2:mat(0xc9a877),dark:mat(0x8a6a45),syr:mat(0x6aa8e8,{transparent:true,opacity:.55,roughness:.2}),pis:mat(0xdddddd,{roughness:.5}),steel:mat(0x4a4f55,{roughness:.4,metalness:.6}),tube:mat(0xbfe3ff,{transparent:true,opacity:.7,roughness:.2})};
   const root=new THREE.Group(),mm=new THREE.Group();mm.scale.setScalar(0.001);root.add(mm);
@@ -41,7 +41,10 @@ export function createArm(P){
   // turntable, tower
   const px=-45;
   const disc=cyl(22,T,MAT.dark);disc.position.set(px,T+T/2+T,0);base.add(disc);tag(disc,'giro');
-  const yaw=new THREE.Group();yaw.position.set(px,3*T,0);base.add(yaw);
+  { // plataforma giratoria (peca 28) sobre o disco
+    const b=bbox(28),cx=(b.a[0]+b.b[0])/2,cy=(b.a[1]+b.b[1])/2;const pg=new THREE.Group();pg.position.set(px,3*T,0);pg.rotation.y=Math.PI/2;base.add(pg);
+    const m=build(28,q=>[q[0]-cx,q[1]-cy],MAT.mdf2,0);m.rotation.x=-Math.PI/2;pg.add(m);tag(m,'giro')}
+  const yaw=new THREE.Group();yaw.position.set(px,4*T,0);base.add(yaw);
   const tower=upright(6,MAT.mdf,-T/2);yaw.add(tower);tag(tower,'giro');
   const tb=bbox(6),towerH=tb.b[1]-tb.a[1];
   const shoulder=new THREE.Group();shoulder.position.set(0,towerH-12,0);yaw.add(shoulder);pin(shoulder);
@@ -49,10 +52,26 @@ export function createArm(P){
   const elbow=new THREE.Group();elbow.position.set(Lb,0,0);shoulder.add(elbow);pin(elbow);
   const f1=link(10,MAT.mdf2,T/2+1+T+1),f2=link(21,MAT.mdf2,-T/2-1-T-1-T);elbow.add(f1.mesh,f2.mesh);tag(f1.mesh,'cot');tag(f2.mesh,'cot');const Lf=f1.len;
   const wrist=new THREE.Group();wrist.position.set(Lf,0,0);elbow.add(wrist);pin(wrist);
-  let clawLen=0;
-  const finger=(id,z0)=>{const p=P[id],cs=p.holes.filter(h=>h.r),A=cs[0],B=cs[1],ang=Math.atan2(B.y-A.y,B.x-A.x),c=Math.cos(-ang),s=Math.sin(-ang);
-    const tf=q=>{const x=q[0]-A.x,y=q[1]-A.y;return[c*x-s*y,s*x+c*y]};p.outline.forEach(q=>clawLen=Math.max(clawLen,tf(q)[0]));return build(id,tf,MAT.dark,z0)};
-  const ga=new THREE.Group(),gb=new THREE.Group();wrist.add(ga,gb);ga.add(finger(14,0));gb.add(finger(15,-T));tag(ga,'garra');tag(gb,'garra');
+  let clawLen=0,ga=null,gb=null,gnodes=[],gMass=0;
+  if(G){ // Garra A real (CAD) montada no punho
+    const gs=G.scene;const mount=new THREE.Group(),inner=new THREE.Group();wrist.add(mount);mount.add(inner);inner.scale.setScalar(1000);inner.add(gs);
+    const poses=G.poses,b0=poses.find(p=>p.name.startsWith('NB_base')),fg=poses.find(p=>p.name==='A_dedo_1');
+    const s2=Math.sign(fg.closed[2]-b0.closed[2])||1,s1=-s2;
+    mount.quaternion.setFromRotationMatrix(new THREE.Matrix4().set(0,0,s2,0, 0,1,0,0, s1,0,0,0, 0,0,0,1));
+    const box=new THREE.Box3().setFromObject(gs);
+    const zb=s2>0?box.min.z:box.max.z,zf=s2>0?box.max.z:box.min.z;clawLen=Math.abs(zf-zb)*1000;
+    inner.position.set(-(box.min.x+box.max.x)/2*1000,-(box.min.y+box.max.y)/2*1000,-zb*1000);
+    gs.children.slice().forEach(n=>{const po=poses.find(p=>p.name===n.name);if(!po)return;
+      if(/espacador|parafuso/.test(n.name))po.angle=0;
+      n.traverse(o=>{if(o.isMesh){o.material=o.material.clone();o.material.transparent=true;o.userData.wood=true;o.castShadow=true;
+        const p=o.geometry.attributes.position,ix=o.geometry.index;let v=0;for(let i=0;i<ix.count;i+=3){const a=[0,1,2].map(k=>new THREE.Vector3().fromBufferAttribute(p,ix.getX(i+k)));v+=a[0].dot(a[1].clone().cross(a[2]))/6}gMass+=Math.abs(v)*1e6*0.7}});
+      gnodes.push({n,po})});
+    tag(gs,'garra');
+  }else{
+    const finger=(id,z0)=>{const p=P[id],cs=p.holes.filter(h=>h.r),A=cs[0],B=cs[1],ang=Math.atan2(B.y-A.y,B.x-A.x),c=Math.cos(-ang),s=Math.sin(-ang);
+      const tf=q=>{const x=q[0]-A.x,y=q[1]-A.y;return[c*x-s*y,s*x+c*y]};p.outline.forEach(q=>clawLen=Math.max(clawLen,tf(q)[0]));return build(id,tf,MAT.dark,z0)};
+    ga=new THREE.Group();gb=new THREE.Group();wrist.add(ga,gb);ga.add(finger(14,0));gb.add(finger(15,-T));tag(ga,'garra');tag(gb,'garra');
+  }
   // slave syringes
   const slave=(parent,pos,axis)=>{const g=new THREE.Group();g.position.set(...pos);parent.add(g);
     const inner=new THREE.Group();g.add(inner);if(axis==='x')inner.rotation.z=Math.PI/2;if(axis==='z')inner.rotation.x=Math.PI/2;
@@ -70,7 +89,8 @@ export function createArm(P){
   const V3=new THREE.Vector3();
   function setPose(j){Object.assign(J,j);
     yaw.rotation.y=-J.g*D2R;shoulder.rotation.z=J.o*D2R;elbow.rotation.z=J.c*D2R;
-    const op=J.r/100*28*D2R;ga.rotation.z=op;gb.rotation.z=-op;
+    if(ga){const op=J.r/100*28*D2R;ga.rotation.z=op;gb.rotation.z=-op}
+    const sg=J.r/100;gnodes.forEach(({n,po})=>{for(let k=0;k<3;k++)n.position.setComponent(k,po.closed[k]+(po.open[k]-po.closed[k])*sg);n.rotation.set(0,po.angle*sg,0)});
     const n=norm(J);
     pist.forEach((p,i)=>p.rod.position.set(BX+35-n[i]*STROKE,p.y,p.z));
     S.forEach((s,i)=>s.rod.position.y=18-n[i]*STROKE*.6);
@@ -82,11 +102,11 @@ export function createArm(P){
     return n}
   function s_port(s,out){s.port.getWorldPosition(out);mm.worldToLocal(out)}
   const wp=o=>{mm.updateMatrixWorld(true);const v=new THREE.Vector3();o.getWorldPosition(v);return mm.worldToLocal(v)};
-  const tipLocal=new THREE.Vector3(clawLen*.75,0,0);
+  const tipLen=clawLen*.8;const tipLocal=new THREE.Vector3(tipLen,0,0);
   const tipPos=()=>{mm.updateMatrixWorld(true);const v=tipLocal.clone();wrist.localToWorld(v);return mm.worldToLocal(v)};
   // masses (g): MDF 0.70 g/cm3, 5 mm
   const mass=id=>area(P[id])*T/1000*0.7;
-  const M={boom:mass(8)+mass(9),fore:mass(10)+mass(21),claw:mass(14)+mass(15),tower:mass(6),base:mass(3),total:0};
+  const M={boom:mass(8)+mass(9),fore:mass(10)+mass(21),claw:G?gMass:mass(14)+mass(15),tower:mass(6)+mass(28),base:mass(3),total:0};
   M.total=M.boom+M.fore+M.claw+M.tower+M.base+mass(0)+mass(22);
-  return{root,mm,base,yaw,shoulder,elbow,wrist,groups,woods,pist,slave:S,tubes,piece,J,setPose,norm,tipPos,wp,Lb,Lf,px,towerH,clawLen,shoulderY:3*T+towerH-12,M,MAT};
+  return{root,mm,base,yaw,shoulder,elbow,wrist,groups,woods,pist,slave:S,tubes,piece,J,setPose,norm,tipPos,wp,Lb,Lf,px,towerH,clawLen,tipLen,shoulderY:4*T+towerH-12,M,MAT};
 }
