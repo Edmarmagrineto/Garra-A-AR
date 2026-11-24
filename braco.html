@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Braço robótico · simulador (estimado)</title>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<style>
+:root{--bg:#efece4;--panel:#f7f5ef;--ink:#2a2723;--mut:#8a857c;--acc:#e0701a;--line:#dcd7cb}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,Segoe UI,Roboto,sans-serif;display:flex;flex-direction:column;overflow:hidden}
+header{display:flex;justify-content:space-between;align-items:flex-start;padding:14px 20px;gap:12px;flex-wrap:wrap}
+h1{margin:0;font-size:1.5rem}.sub{color:var(--mut);font-size:.8rem;margin:2px 0 8px}
+.pill{display:inline-block;border:1.5px solid var(--acc);color:var(--acc);border-radius:99px;padding:5px 14px;font-size:.85rem;text-decoration:none;font-weight:600;margin-right:6px}
+.pill:hover{background:var(--acc);color:#fff}
+.big{text-align:right}.big .lbl{font-size:.75rem;color:var(--mut)}
+.big .num{font:700 2.4rem ui-monospace,Consolas,monospace;color:var(--acc);line-height:1}.big .num small{font-size:1rem}
+.big .mono{font:.7rem ui-monospace,Consolas,monospace;color:var(--mut)}
+#wrap{flex:1;display:flex;gap:12px;padding:0 12px;min-height:0}
+aside{width:260px;display:flex;flex-direction:column;gap:12px;overflow:auto;flex:none}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.card h3{margin:0 0 8px;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase}
+.row{margin:10px 0 2px;font-size:.85rem}.row .v{float:right;font-weight:600;font-family:ui-monospace,Consolas,monospace}
+input[type=range]{width:100%;accent-color:var(--acc)}
+#stage{flex:1;position:relative;min-width:0;border-radius:12px;overflow:hidden}
+#c{width:100%;height:100%;display:block}
+#hint{position:absolute;left:10px;top:10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:.82rem;max-width:440px}
+#hint b{color:var(--acc)}
+.lab{position:absolute;font:.68rem ui-monospace,Consolas,monospace;background:rgba(247,245,239,.92);border:1px solid var(--line);padding:2px 6px;border-radius:4px;pointer-events:none;white-space:nowrap;transform:translate(-50%,-130%)}
+#load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--mut)}
+.kv{display:flex;justify-content:space-between;font-size:.82rem;padding:5px 0;border-bottom:1px solid var(--line)}.kv:last-child{border:0}.kv b{font-family:ui-monospace,Consolas,monospace}
+.note{font-size:.74rem;color:var(--mut);line-height:1.4}
+nav{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding:10px 12px 14px}
+nav button{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:99px;padding:8px 16px;font-size:.88rem;cursor:pointer}
+nav button.on,nav button.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+nav .sep{width:8px}
+@media(max-width:900px){body{overflow:auto}#wrap{flex-direction:column}aside{width:auto;flex-direction:row;flex-wrap:wrap}aside .card{flex:1 1 230px}#stage{height:62vh;flex:none}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Braço robótico hidráulico · versão estimada</h1>
+    <p class="sub">Projeto e Desenvolvimento de Produtos · peças extrudadas do DXF de corte (MDF 5 mm)</p>
+    <a class="pill" href="index.html">← Simulador da garra</a><a class="pill" href="ar.html">Ver garra em realidade aumentada ↗</a>
+  </div>
+  <div class="big"><div class="lbl">Alcance da garra (horizontal)</div><div class="num"><span id="reach">0</span> <small>mm</small></div><div class="mono">altura <span id="alt">0</span> mm</div></div>
+</header>
+<div id="wrap">
+  <aside>
+    <div class="card">
+      <h3>Articulações</h3>
+      <div class="row">Giro da base<span class="v" id="vg">0°</span></div><input type="range" id="s0" min="-90" max="90" value="0" step="1">
+      <div class="row">Ombro<span class="v" id="vo">60°</span></div><input type="range" id="s1" min="5" max="110" value="60" step="1">
+      <div class="row">Cotovelo<span class="v" id="vc">-70°</span></div><input type="range" id="s2" min="-140" max="0" value="-70" step="1">
+      <div class="row">Garra<span class="v" id="vr">40%</span></div><input type="range" id="s3" min="0" max="100" value="40" step="1">
+    </div>
+    <div class="card">
+      <h3>Seringas mestras</h3>
+      <div class="kv"><span>Giro</span><b id="p0">–</b></div>
+      <div class="kv"><span>Ombro</span><b id="p1">–</b></div>
+      <div class="kv"><span>Cotovelo</span><b id="p2">–</b></div>
+      <div class="kv"><span>Garra</span><b id="p3">–</b></div>
+      <p class="note">Curso do êmbolo de cada seringa (0 a 40 mm), proporcional ao ângulo da articulação.</p>
+    </div>
+    <div class="card"><h3>Atenção</h3><p class="note">A chapa de corte (DXF) é 2D e não traz a montagem. Os contornos e furos são reais; a <b>posição das peças e as articulações foram estimadas</b>. Peças pequenas de encaixe do DXF não estão na montagem.</p></div>
+  </aside>
+  <div id="stage"><canvas id="c"></canvas><div id="labels"></div>
+    <div id="hint"><b>Mova os controles</b> à esquerda para girar a base, levantar o ombro, dobrar o cotovelo e abrir a garra. Arraste o fundo para girar a vista.</div>
+    <div id="load">carregando peças…</div></div>
+</div>
+<nav>
+  <button data-v="hero" class="on">Herói</button><button data-v="side">Lado</button><button data-v="front">Frente</button><button data-v="top">Topo</button>
+  <span class="sep"></span>
+  <button class="pri" id="tour">Tour automático</button><button class="pri" id="leg">Legendas</button><button id="reset">Reiniciar</button>
+</nav>
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+const $=id=>document.getElementById(id);const canvas=$('c'),stage=$('stage');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;
+const scene=new THREE.Scene();const cam=new THREE.PerspectiveCamera(35,1,0.01,10);
+const ctl=new OrbitControls(cam,canvas);ctl.enableDamping=true;
+scene.add(new THREE.HemisphereLight(0xffffff,0xb9b2a2,1.1));
+const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(0.3,0.8,0.4);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-.5,right:.5,top:.5,bottom:-.5,near:.05,far:3});scene.add(sun);
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(4,4),new THREE.ShadowMaterial({opacity:.18}));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
+const grid=new THREE.GridHelper(1,20,0xcfc9ba,0xdcd7cb);grid.position.y=0.0002;scene.add(grid);
+
+const mm=new THREE.Group();mm.scale.setScalar(0.001);scene.add(mm); // work in millimetres
+const T=5;
+const mdf=new THREE.MeshStandardMaterial({color:0xd9c39a,roughness:.8});
+const mdf2=new THREE.MeshStandardMaterial({color:0xc9a877,roughness:.8});
+const dark=new THREE.MeshStandardMaterial({color:0x8a6a45,roughness:.8});
+const syr=new THREE.MeshStandardMaterial({color:0x6aa8e8,transparent:true,opacity:.55,roughness:.2});
+const pis=new THREE.MeshStandardMaterial({color:0xdddddd,roughness:.5});
+const steel=new THREE.MeshStandardMaterial({color:0x4a4f55,roughness:.4,metalness:.6});
+
+fetch('braco_parts.json').then(r=>r.json()).then(D=>{
+  const P=D.parts;
+  function build(id,tf,mat,z0){
+    const p=P[id];const V=a=>new THREE.Vector2(...tf(a));
+    const s=new THREE.Shape(p.outline.map(V));
+    p.holes.forEach(h=>{const path=new THREE.Path();if(h.r){const c=tf([h.x,h.y]);path.absarc(c[0],c[1],h.r,0,Math.PI*2,true)}else path.setFromPoints(h.poly.map(V));s.holes.push(path)});
+    const m=new THREE.Mesh(new THREE.ExtrudeGeometry(s,{depth:T,bevelEnabled:false,curveSegments:12}),mat);
+    m.castShadow=m.receiveShadow=true;m.position.z=z0;return m}
+  const bbox=id=>{const o=P[id].outline;let a=[1e9,1e9],b=[-1e9,-1e9];o.forEach(q=>{a=[Math.min(a[0],q[0]),Math.min(a[1],q[1])];b=[Math.max(b[0],q[0]),Math.max(b[1],q[1])]});return{a,b}};
+  // link: first/last hole along the long axis -> pivot at A, B on +x
+  function link(id,mat,z0,flip){
+    const p=P[id],cs=p.holes.filter(h=>h.r);const horiz=p.w>p.h;
+    cs.sort((u,v)=>horiz?u.x-v.x:u.y-v.y);const A=cs[0],B=cs[cs.length-1];
+    const ang=Math.atan2(B.y-A.y,B.x-A.x),c=Math.cos(-ang),s=Math.sin(-ang);
+    const tf=q=>{const x=q[0]-A.x,y=q[1]-A.y;return[c*x-s*y,(s*x+c*y)*(flip?-1:1)]};
+    return{mesh:build(id,tf,mat,z0),len:Math.hypot(B.x-A.x,B.y-A.y)}}
+  // flat plate part placed lying/standing: centre in x, min y at 0
+  function upright(id,mat,z0,rot){const b=bbox(id);const cx=(b.a[0]+b.b[0])/2;return build(id,q=>[q[0]-cx,q[1]-b.a[1]],mat,z0)}
+
+  // ----- base plate (lying, long axis along X)
+  const base=new THREE.Group();mm.add(base);
+  {const b=bbox(3);const cx=(b.a[0]+b.b[0])/2,cy=(b.a[1]+b.b[1])/2;
+   const m=build(3,q=>[q[0]-cx,q[1]-cy],mdf2,0);m.rotation.x=-Math.PI/2;m.rotation.z=Math.PI/2;m.position.y=T;base.add(m);} // thickness goes up
+  // plate rotated: local x(130)->z, local y(231)->x
+  // rack walls (standing, normal along X)
+  const wall=(id,xpos,mat)=>{const m=upright(id,mat,0);m.rotation.y=Math.PI/2;m.position.set(xpos,T,0);base.add(m);return m};
+  wall(0,-88,mdf);const rack=wall(22,92,mdf);
+  // master syringes through P22 holes (axis along X)
+  const holes22=P[22].holes.filter(h=>h.r).sort((a,b)=>a.x-b.x);const b22=bbox(22);const c22=(b22.a[0]+b22.b[0])/2;
+  const pist=[];
+  holes22.forEach((h,i)=>{const z=-(h.x-c22),y=T+(h.y-b22.a[1]);
+    const bar=new THREE.Mesh(new THREE.CylinderGeometry(8,8,70,24,1,true),syr);bar.rotation.z=Math.PI/2;bar.position.set(92+T+30,y,z);base.add(bar);
+    const rod=new THREE.Mesh(new THREE.CylinderGeometry(2.5,2.5,60,12),pis);rod.rotation.z=Math.PI/2;base.add(rod);
+    const hd=new THREE.Mesh(new THREE.CylinderGeometry(6,6,6,16),pis);hd.rotation.z=Math.PI/2;rod.add(hd);hd.position.y=-30;
+    pist.push({rod,y,z});});
+  // turntable + tower
+  const px=-45;
+  const disc=new THREE.Mesh(new THREE.CylinderGeometry(22,22,T,40),dark);disc.position.set(px,T+T/2+T,0);base.add(disc);disc.castShadow=true;
+  const yaw=new THREE.Group();yaw.position.set(px,T+T+T,0);base.add(yaw);
+  const tower=upright(6,mdf,-T/2);yaw.add(tower);tower.position.y=0;
+  const tb=bbox(6),towerH=tb.b[1]-tb.a[1];
+  const shoulder=new THREE.Group();shoulder.position.set(0,towerH-12,0);yaw.add(shoulder);
+  const pin=(g,z)=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.5,40,10),steel);m.rotation.x=Math.PI/2;g.add(m)};pin(shoulder);
+  // boom: two plates either side of tower
+  const b1=link(8,mdf,T/2+1,false),b2=link(9,mdf,-T/2-1-T,false);shoulder.add(b1.mesh,b2.mesh);const Lb=b1.len;
+  // forearm (outside boom plates)
+  const elbow=new THREE.Group();elbow.position.set(Lb,0,0);shoulder.add(elbow);pin(elbow);
+  const f1=link(10,mdf2,T/2+1+T+1,false),f2=link(21,mdf2,-T/2-1-T-1-T,false);elbow.add(f1.mesh,f2.mesh);const Lf=f1.len;
+  const wrist=new THREE.Group();wrist.position.set(Lf,0,0);elbow.add(wrist);pin(wrist);
+  // fingers: pivot at first hole, opposite scissor
+  const fa=(()=>{const p=P[14],cs=p.holes.filter(h=>h.r),A=cs[0],B=cs[1];const ang=Math.atan2(B.y-A.y,B.x-A.x),c=Math.cos(-ang),s=Math.sin(-ang);return build(14,q=>{const x=q[0]-A.x,y=q[1]-A.y;return[c*x-s*y,s*x+c*y]},dark,0)})();
+  const fb=(()=>{const p=P[15],cs=p.holes.filter(h=>h.r),A=cs[0],B=cs[1];const ang=Math.atan2(B.y-A.y,B.x-A.x),c=Math.cos(-ang),s=Math.sin(-ang);return build(15,q=>{const x=q[0]-A.x,y=q[1]-A.y;return[c*x-s*y,s*x+c*y]},dark,0)})();
+  const ga=new THREE.Group(),gb=new THREE.Group();wrist.add(ga,gb);ga.add(fa);gb.add(fb);fa.position.z=0;fb.position.z=-T;
+  // labels
+  const anchors=[['Base',base,[0,25,0]],['Torre',yaw,[0,towerH,0]],['Lança',shoulder,[Lb/2,10,0]],['Antebraço',elbow,[Lf/2,10,0]],['Garra',wrist,[30,20,0]],['Suporte das mestras',base,[92,40,0]]];
+  const labs=anchors.map(a=>{const e=document.createElement('div');e.className='lab';e.textContent=a[0];$('labels').appendChild(e);return{e,o:a[1],p:new THREE.Vector3(...a[2])}});
+  $('load').remove();
+
+  const J={g:0,o:60,c:-70,r:40};
+  const d2r=Math.PI/180;
+  function apply(){
+    yaw.rotation.y=-J.g*d2r;shoulder.rotation.z=J.o*d2r;elbow.rotation.z=J.c*d2r;
+    const op=J.r/100*28*d2r;ga.rotation.z=op;gb.rotation.z=-op;
+    const norm=[(J.g+90)/180,(J.o-5)/105,(-J.c)/140,J.r/100];
+    pist.forEach((p,i)=>{const t=norm[i]*40;p.rod.position.set(92+T+30+35-t,p.y,p.z)}); // piston travels in/out
+    mm.updateMatrixWorld(true);
+    const w=new THREE.Vector3(0,0,0);wrist.localToWorld(w);w.multiplyScalar(1000);
+    const root=new THREE.Vector3(px,0,0);base.localToWorld(root);root.multiplyScalar(1000);
+    $('reach').textContent=Math.round(Math.hypot(w.x-root.x,w.z-root.z));$('alt').textContent=Math.round(w.y);
+    $('vg').textContent=J.g+'°';$('vo').textContent=J.o+'°';$('vc').textContent=J.c+'°';$('vr').textContent=J.r+'%';
+    norm.forEach((n,i)=>$('p'+i).textContent=(n*40).toFixed(1)+' mm');
+    ['s0','s1','s2','s3'].forEach((id,i)=>$(id).value=[J.g,J.o,J.c,J.r][i]);
+  }
+  ['s0','s1','s2','s3'].forEach((id,i)=>$(id).oninput=e=>{J['gocr'[i]]=+e.target.value;tour=false;$('tour').classList.add('pri');apply()});
+  $('reset').onclick=()=>{Object.assign(J,{g:0,o:60,c:-70,r:40});apply()};
+  apply();
+
+  const V={hero:[0.28,0.24,0.34],side:[0.0,0.14,0.6],front:[0.6,0.14,0],top:[0.0,0.65,0.05]};
+  cam.position.set(...V.hero);ctl.target.set(0,0.07,0);
+  let tween=null,tour=false,showLab=true;
+  document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{tour=false;tween={f:cam.position.clone(),t:new THREE.Vector3(...V[b.dataset.v]),k:0};document.querySelectorAll('[data-v]').forEach(x=>x.classList.toggle('on',x===b))});
+  $('leg').onclick=()=>{showLab=!showLab;$('leg').classList.toggle('pri',showLab);$('labels').style.display=showLab?'':'none'};
+  $('tour').onclick=()=>{tour=!tour;$('tour').classList.toggle('pri',!tour)};
+  function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}
+  addEventListener('resize',resize);resize();
+  let t0=performance.now();
+  (function loop(){requestAnimationFrame(loop);const t=performance.now(),dt=(t-t0)/1000;t0=t;
+    if(tween){tween.k=Math.min(1,tween.k+dt*1.6);cam.position.lerpVectors(tween.f,tween.t,1-Math.pow(1-tween.k,3));if(tween.k>=1)tween=null}
+    if(tour){J.g=Math.round(60*Math.sin(t/1800));J.o=Math.round(55+40*Math.sin(t/1300));J.c=Math.round(-70-60*Math.sin(t/1700+1));J.r=Math.round(50+50*Math.sin(t/900));apply()}
+    ctl.update();renderer.render(scene,cam);
+    if(showLab)labs.forEach(l=>{const v=l.p.clone();l.o.localToWorld(v);v.project(cam);l.e.style.left=(v.x+1)/2*canvas.clientWidth+'px';l.e.style.top=(1-v.y)/2*canvas.clientHeight+'px'});
+  })();
+});
+</script>
+</body>
+</html>
