@@ -97,7 +97,7 @@ nav .sep{width:6px}
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {createArm,D2R,RANGE,STROKE} from './arm.js';
+import {createArm,D2R,RANGE,STROKE} from './arm.js?v=3';
 const $=id=>document.getElementById(id);const canvas=$('c'),stage=$('stage');
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;
 const scene=new THREE.Scene();const cam=new THREE.PerspectiveCamera(35,1,0.01,10);
