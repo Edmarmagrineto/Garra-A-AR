@@ -124,7 +124,7 @@ Promise.all([new GLTFLoader().loadAsync('sim.glb'),fetch('poses.json').then(r=>r
     if(k==='A_espacador'||k==='NB_espacador'||k==='parafuso')po.angle=0;
     n.traverse(o=>{if(o.isMesh){o.castShadow=true;o.material=o.material.clone();o.material.transparent=true;o.userData.part=parts.length}});
     const el=document.createElement('div');el.className='lab';el.textContent=LABEL[k];labels.appendChild(el);
-    parts.push({node:n,po,k,g:GROUP(k),el,base:n.position.clone()});
+    parts.push({node:n,po,k,g:GROUP(k),el,base:n.position.clone(),first:!parts.some(q=>q.k===k)});
   });
   const names={};parts.forEach((p,i)=>{names[p.k]=(names[p.k]||0)+1});
   const pl=$('plist');parts.forEach((p,i)=>{const d=document.createElement('div');d.textContent=LABEL[p.k]+(names[p.k]>1?' #'+(parts.filter((q,j)=>q.k===p.k&&j<=i).length):'');d.onclick=()=>select(i);p.row=d;pl.appendChild(d)});
@@ -168,7 +168,7 @@ canvas.addEventListener('pointermove',e=>{if(!drag)return;
   S=Math.max(0,Math.min(1,drag.s+((e.clientX-drag.x)*vx+(e.clientY-drag.y)*vy)/vl2));apply()});
 const up=()=>{drag=null;ctl.enabled=true};canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
 // views
-const V={hero:[0.17,0.14,0.2],front:[0,0.04,0.34],side:[0.34,0.04,0],top:[0.0001,0.4,0.0001]};
+const V={hero:[0.11,0.1,0.15],front:[0,0.05,0.26],side:[0.26,0.05,0],top:[0,0.3,0.03]};
 let tween=null;
 function view(n,now){const p=V[n];if(now){cam.position.set(...p);ctl.target.set(0,0.014,0);return}
   tween={from:cam.position.clone(),to:new THREE.Vector3(...p),t:0};document.querySelectorAll('[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===n))}
@@ -182,9 +182,9 @@ addEventListener('resize',resize);resize();
 let t0=performance.now();
 (function loop(){requestAnimationFrame(loop);const t=performance.now(),dt=(t-t0)/1000;t0=t;
   if(tween){tween.t=Math.min(1,tween.t+dt*1.6);cam.position.lerpVectors(tween.from,tween.to,1-Math.pow(1-tween.t,3));if(tween.t>=1)tween=null}
-  if(tour&&parts.length){S=0.5-0.5*Math.cos(t/1500);apply();const a=t/6000;cam.position.set(Math.cos(a)*0.26,0.12,Math.sin(a)*0.26)}
+  if(tour&&parts.length){S=0.5-0.5*Math.cos(t/1500);apply();const a=t/6000;cam.position.set(Math.cos(a)*0.2,0.1,Math.sin(a)*0.2)}
   ctl.update();renderer.render(scene,cam);
-  if(showLab)parts.forEach(p=>{const v=p.node.position.clone().project(cam);const x=(v.x+1)/2*canvas.clientWidth,y=(1-v.y)/2*canvas.clientHeight;p.el.style.left=x+'px';p.el.style.top=y+'px';p.el.style.display=(p.g==='outros'||p.g===group||group==='all')&&(p.k!=='A_espacador')&&(p.k!=='parafuso')?'':'none'});
+  if(showLab)parts.forEach(p=>{const v=p.node.position.clone().project(cam);const x=(v.x+1)/2*canvas.clientWidth,y=(1-v.y)/2*canvas.clientHeight;p.el.style.left=x+'px';p.el.style.top=y+'px';p.el.style.display=(p.first&&(p.g==='outros'||p.g===group||group==='all')&&p.k!=='A_espacador'&&p.k!=='parafuso'&&p.k!=='NB_espacador')?'':'none'});
 })();
 </script>
 </body>
