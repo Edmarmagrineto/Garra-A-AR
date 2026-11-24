@@ -45,17 +45,17 @@ ul{padding-left:1.2em;color:var(--mut)}
 import * as THREE from 'three';
 import {GLTFExporter} from 'three/addons/exporters/GLTFExporter.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {createArm} from './arm.js?v=3';
+import {createArm} from './arm.js?v=4';
 const q=new URLSearchParams(location.search),$=id=>document.getElementById(id);
 $('qr').src='https://api.qrserver.com/v1/create-qr-code/?size=320x320&data='+encodeURIComponent(location.origin+location.pathname);
 const mv=$('mv');
 $('arbtn').onclick=()=>{if(mv.canActivateAR)mv.activateAR();else alert('A Realidade Aumentada só funciona em celulares compatíveis (Android com ARCore ou iPhone). Abra este site no celular.')};
 try{
-  const [D,gl,poses]=await Promise.all([fetch('braco_parts.json?v=3').then(r=>r.json()),new GLTFLoader().loadAsync('sim.glb'),fetch('poses.json').then(r=>r.json())]);
+  const [D,gl,poses]=await Promise.all([fetch('braco_parts.json?v=4').then(r=>r.json()),new GLTFLoader().loadAsync('sim.glb'),fetch('poses.json').then(r=>r.json())]);
   const arm=createArm(D.parts,{scene:gl.scene,poses});
   const num=(k,d)=>q.has(k)&&isFinite(+q.get(k))?+q.get(k):d;
   arm.setPose({g:num('g',0),o:num('o',60),c:num('c',-70),r:num('r',40)});
-  arm.mm.remove(arm.piece);
+  arm.mm.remove(arm.piece);arm.woods.forEach(m=>{if(m.userData.edge){m.remove(m.userData.edge)}});
   const scene=new THREE.Scene();scene.add(arm.root);
   arm.root.updateMatrixWorld(true);
   const glb=await new Promise((res,rej)=>new GLTFExporter().parse(scene,res,rej,{binary:true}));

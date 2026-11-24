@@ -8,8 +8,16 @@ const area=p=>{const sh=a=>{let s=0;for(let i=0;i<a.length;i++){const q=a[(i+1)%
   let A=sh(p.outline);p.holes.forEach(h=>A-=h.r?Math.PI*h.r*h.r:sh(h.poly));return A};
 
 export function createArm(P,G){
+  // textura procedural de MDF (fibra fina) + bordas escuras de corte a laser
+  const tex=(()=>{const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d'),id=x.createImageData(256,256);
+    for(let i=0;i<65536;i++){const px=i%256,py=(i/256)|0,v=(Math.random()-.5)*30+(Math.sin(px*.09)+Math.sin(py*.06)+Math.sin((px+py)*.03))*4;
+      id.data[i*4]=206+v;id.data[i*4+1]=172+v;id.data[i*4+2]=120+v;id.data[i*4+3]=255}
+    x.putImageData(id,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;return t})();
+  const texA=tex.clone();texA.repeat.set(.02,.02);texA.needsUpdate=true;
+  const texG=tex.clone();texG.needsUpdate=true;
   const mat=(c,o={})=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.8},o));
-  const MAT={mdf:mat(0xd9c39a),mdf2:mat(0xc9a877),dark:mat(0x8a6a45),syr:mat(0x6aa8e8,{transparent:true,opacity:.55,roughness:.2}),pis:mat(0xdddddd,{roughness:.5}),steel:mat(0x4a4f55,{roughness:.4,metalness:.6}),tube:mat(0xbfe3ff,{transparent:true,opacity:.7,roughness:.2})};
+  const MAT={mdf:mat(0xffffff,{map:texA,roughness:.85}),mdf2:mat(0xe9d2a2,{map:texA,roughness:.85}),dark:mat(0xa88050,{map:texA,roughness:.8}),syr:mat(0x6aa8e8,{transparent:true,opacity:.55,roughness:.2}),pis:mat(0xdddddd,{roughness:.5}),steel:mat(0xb8bec6,{roughness:.28,metalness:.85}),steelDark:mat(0x30353b,{roughness:.35,metalness:.8}),tube:mat(0xbfe3ff,{transparent:true,opacity:.7,roughness:.2})};
+  const edge=m=>{const l=new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry,35),new THREE.LineBasicMaterial({color:0x3e2713,transparent:true,opacity:.6}));m.add(l);m.userData.edge=l};
   const root=new THREE.Group(),mm=new THREE.Group();mm.scale.setScalar(0.001);root.add(mm);
   const groups={giro:[],ombro:[],cot:[],garra:[],painel:[],base:[]};
   const woods=[];
@@ -17,7 +25,7 @@ export function createArm(P,G){
   const build=(id,tf,mt,z0)=>{const p=P[id];const V=a=>new THREE.Vector2(...tf(a));const s=new THREE.Shape(p.outline.map(V));
     p.holes.forEach(h=>{const pa=new THREE.Path();if(h.r){const c=tf([h.x,h.y]);pa.absarc(c[0],c[1],h.r,0,Math.PI*2,true)}else pa.setFromPoints(h.poly.map(V));s.holes.push(pa)});
     const m=new THREE.Mesh(new THREE.ExtrudeGeometry(s,{depth:T,bevelEnabled:false,curveSegments:12}),mt.clone());
-    m.material.transparent=true;m.userData.wood=true;m.castShadow=m.receiveShadow=true;m.position.z=z0;return m};
+    m.material.transparent=true;m.userData.wood=true;m.castShadow=m.receiveShadow=true;m.position.z=z0;edge(m);return m};
   const bbox=id=>{let a=[1e9,1e9],b=[-1e9,-1e9];P[id].outline.forEach(q=>{a=[Math.min(a[0],q[0]),Math.min(a[1],q[1])];b=[Math.max(b[0],q[0]),Math.max(b[1],q[1])]});return{a,b}};
   const link=(id,mt,z0)=>{const p=P[id],cs=p.holes.filter(h=>h.r),horiz=p.w>p.h;cs.sort((u,v)=>horiz?u.x-v.x:u.y-v.y);
     const A=cs[0],B=cs[cs.length-1],ang=Math.atan2(B.y-A.y,B.x-A.x),c=Math.cos(-ang),s=Math.sin(-ang);
@@ -63,7 +71,11 @@ export function createArm(P,G){
     inner.position.set(-(box.min.x+box.max.x)/2*1000,-(box.min.y+box.max.y)/2*1000,-zb*1000);
     gs.children.slice().forEach(n=>{const po=poses.find(p=>p.name===n.name);if(!po)return;
       if(/espacador|parafuso/.test(n.name))po.angle=0;
-      n.traverse(o=>{if(o.isMesh){o.material=o.material.clone();o.material.transparent=true;o.userData.wood=true;o.castShadow=true;
+      n.traverse(o=>{if(o.isMesh){
+        const bm=/dedo/.test(n.name)?MAT.dark:/parafuso/.test(n.name)?MAT.steel:/espacador/.test(n.name)?MAT.steelDark:/elo|biela/.test(n.name)?MAT.mdf2:MAT.mdf;
+        o.material=bm.clone();if(o.material.map)o.material.map=texG;o.material.transparent=true;o.userData.wood=true;o.castShadow=o.receiveShadow=true;
+        {const pp=o.geometry.attributes.position,uv=new Float32Array(pp.count*2),off=Math.random()*5;for(let i=0;i<pp.count;i++){uv[i*2]=pp.getX(i)*12+off;uv[i*2+1]=pp.getZ(i)*12+off}o.geometry.setAttribute('uv',new THREE.BufferAttribute(uv,2))}
+        edge(o);
         const p=o.geometry.attributes.position,ix=o.geometry.index;let v=0;for(let i=0;i<ix.count;i+=3){const a=[0,1,2].map(k=>new THREE.Vector3().fromBufferAttribute(p,ix.getX(i+k)));v+=a[0].dot(a[1].clone().cross(a[2]))/6}gMass+=Math.abs(v)*1e6*0.7}});
       gnodes.push({n,po})});
     tag(gs,'garra');

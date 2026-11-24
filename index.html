@@ -97,18 +97,20 @@ nav .sep{width:6px}
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
-import {createArm,D2R,RANGE,STROKE} from './arm.js?v=3';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+import {createArm,D2R,RANGE,STROKE} from './arm.js?v=4';
 const $=id=>document.getElementById(id);const canvas=$('c'),stage=$('stage');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.15;
 const scene=new THREE.Scene();const cam=new THREE.PerspectiveCamera(35,1,0.01,10);
+scene.environment=new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(),0.04).texture;
 const ctl=new OrbitControls(cam,canvas);ctl.enableDamping=true;
-scene.add(new THREE.HemisphereLight(0xffffff,0xb9b2a2,1.1));
-const sun=new THREE.DirectionalLight(0xffffff,2);sun.position.set(0.3,0.8,0.4);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
+scene.add(new THREE.HemisphereLight(0xffffff,0xb9b2a2,.5));
+const sun=new THREE.DirectionalLight(0xfff4e0,2.2);sun.position.set(0.3,0.8,0.4);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);
 Object.assign(sun.shadow.camera,{left:-.5,right:.5,top:.5,bottom:-.5,near:.05,far:3});scene.add(sun);
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(4,4),new THREE.ShadowMaterial({opacity:.18}));ground.rotation.x=-Math.PI/2;ground.receiveShadow=true;scene.add(ground);
 const grid=new THREE.GridHelper(1,20,0xcfc9ba,0xdcd7cb);grid.position.y=0.0002;scene.add(grid);
 
-Promise.all([fetch('braco_parts.json?v=3').then(r=>r.json()),new GLTFLoader().loadAsync('sim.glb'),fetch('poses.json').then(r=>r.json())]).then(([D,gl,poses])=>{
+Promise.all([fetch('braco_parts.json?v=4').then(r=>r.json()),new GLTFLoader().loadAsync('sim.glb'),fetch('poses.json').then(r=>r.json())]).then(([D,gl,poses])=>{
   const arm=createArm(D.parts,{scene:gl.scene,poses});scene.add(arm.root);
   arm.pist.forEach(p=>p.rod.traverse(o=>{if(o.isMesh)o.material=o.material.clone()}));
   const J=arm.J;const mm=arm.mm;
@@ -144,7 +146,8 @@ Promise.all([fetch('braco_parts.json?v=3').then(r=>r.json()),new GLTFLoader().lo
     const Fo=Math.abs(tO)/(l/1000),Fc=Math.abs(tC)/(l/1000);
     return{Fo,Fc,po:Fo/A/1e5,pc:Fc/A/1e5,grip:m/1000*g/(2*.3),mass:M.total,A}}
   let curStage=null;
-  function refreshCv(){if(!curStage||curStage.i==null){$('cv').textContent='';return}
+  function refreshCv(){if(curStage&&curStage.live){$('cv').textContent=`giro ${J.g}° · ombro ${J.o}° · cotovelo ${J.c}° · garra ${J.r}%`;return}
+    if(!curStage||curStage.i==null){$('cv').textContent='';return}
     const n=arm.norm(J),i=curStage.i,v=[J.g+'°',J.o+'°',J.c+'°',J.r+'%'][i];
     $('cv').textContent=`êmbolo ${i+1}: ${fmt(n[i]*STROKE,1)} mm  →  ${['giro','ombro','cotovelo','abertura'][i]} ${v}`}
   const sch=$('sch');
@@ -190,9 +193,9 @@ Promise.all([fetch('braco_parts.json?v=3').then(r=>r.json()),new GLTFLoader().lo
 
   // ---- filters / xray
   function filter(f){document.querySelectorAll('[data-f]').forEach(b=>b.classList.toggle('on',b.dataset.f===f));
-    arm.woods.forEach(m=>{m.material.opacity=f==='all'?1:f==='xray'?.14:arm.groups[f].includes(m)?1:.12});
+    arm.woods.forEach(m=>{const op=f==='all'?1:f==='xray'?.14:arm.groups[f].includes(m)?1:.12;m.material.opacity=op;if(m.userData.edge)m.userData.edge.material.opacity=op*.6});
     [arm.piece].forEach(m=>m.visible=true)}
-  document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>{stopAll();filter(b.dataset.f)});
+  document.querySelectorAll('[data-f]').forEach(b=>b.onclick=()=>startMode(b.dataset.f));
 
   // ---- views
   const V={hero:[.42,.3,.52],side:[0,.18,.8],front:[.8,.18,0],top:[0,.8,.05]};
@@ -213,7 +216,21 @@ Promise.all([fetch('braco_parts.json?v=3').then(r=>r.json()),new GLTFLoader().lo
    {k:'cot',n:'3 · Cotovelo',i:2,f:'cot',a:{c:-25},b:{c:-130},d:'A seringa 3 dobra o antebraço em relação à lança, aproximando ou afastando a garra da base.'},
    {k:'garra',n:'4 · Garra',i:3,f:'garra',a:{r:0},b:{r:100},d:'A seringa 4 empurra o carro da Garra A: as bielas e os elos giram e os dois dedos abrem e fecham em paralelo.'},
    {k:'carry',n:'5 · Pegar e levar',i:null,f:'all',d:'Os quatro movimentos juntos: a garra desce até a peça, fecha, levanta, gira a base e solta a peça na outra marca.'}];
-  $('chips').innerHTML=STAGES.map(s=>`<span data-s="${s.k}">${s.n}</span>`).join('');
+  const MODES={
+   all:{k:'all',n:'Todos os movimentos',i:null,live:true,f:'all',d:'Giro, ombro, cotovelo e garra se movem ao mesmo tempo, cada um comandado pela sua seringa mestra (S1 a S4).'},
+   painel:{k:'painel',n:'Painel das seringas mestras',i:null,live:true,f:'painel',d:'S1 a S4: cada êmbolo empurra o fluido por um tubo até a seringa escrava da articulação. Veja os quatro êmbolos andando.'},
+   xray:{k:'xray',n:'Hidráulica em raio-X',i:null,live:true,f:'xray',d:'A madeira fica transparente para mostrar as seringas escravas e os tubos. O fluido transmite curso e força 1:1 (princípio de Pascal).'}};
+  $('chips').innerHTML=[MODES.all,...STAGES].map(s=>`<span data-s="${s.k}">${s.n}</span>`).join('');
+  const frame=()=>new Promise(r=>requestAnimationFrame(r));
+  async function combined(my,dur=Infinity){const c0={...J},t0=performance.now();
+    while(my===token){const t=performance.now()-t0;if(t>dur)return true;const w=Math.min(1,t/1500),f=(a,b)=>a+(b-a)*w;
+      J.g=Math.round(f(c0.g,55*Math.sin(t/2300)));J.o=Math.round(f(c0.o,58+42*Math.sin(t/1900+1)));J.c=Math.round(f(c0.c,-75-60*Math.sin(t/2100+2)));J.r=Math.round(f(c0.r,50+50*Math.sin(t/1200)));
+      refresh();await frame()}return false}
+  async function single(st,my){if(!await tweenJ({...HOME,...st.a},900,my))return;
+    while(my===token){if(!await tweenJ({...J,...st.b},2800,my))return;if(!await tweenJ({...J,...st.a},2400,my))return}}
+  function startMode(k){stopAll();const my=token,st=STAGES.find(s=>s.k===k)||MODES[k];
+    caption(st);filter(st.f);ctl.autoRotate=true;ctl.autoRotateSpeed=1;
+    if(STAGES.includes(st))single(st,my);else combined(my)}
   function caption(s){curStage=s;$('ct').textContent=s?s.n:'Modo manual';
     $('cd').textContent=s?s.d:'Arraste o êmbolo de uma seringa mestra (à frente da base) ou use os controles à direita. Desafio: leve a peça cinza de A até B.';
     $('chips').querySelectorAll('span').forEach(x=>x.classList.toggle('on',!!s&&x.dataset.s===s.k));
@@ -223,8 +240,9 @@ Promise.all([fetch('braco_parts.json?v=3').then(r=>r.json()),new GLTFLoader().lo
   const sleep=(ms,my)=>new Promise(r=>setTimeout(()=>r(my===token),ms));
   async function demo(my){demoOn=true;$('tour').classList.add('on');ctl.autoRotate=true;ctl.autoRotateSpeed=1.4;
     while(my===token){
-      for(const s of STAGES){if(my!==token)return;caption(s);filter(s.f);
-        if(s.k==='carry'){await runCarry(my)}
+      for(const s of [MODES.all,...STAGES]){if(my!==token)return;caption(s);filter(s.f);
+        if(s.k==='all'){if(!await combined(my,9000))return}
+        else if(s.k==='carry'){await runCarry(my)}
         else{if(!await tweenJ({...HOME,...s.a},1000,my))return;if(!await tweenJ({...J,...s.b},3000,my))return;if(!await tweenJ({...J,...s.a},2400,my))return}
         if(!await sleep(500,my))return}
     }}
